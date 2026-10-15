@@ -1,3 +1,4 @@
+
 package com.learnhub.config;
 
 import com.learnhub.security.JwtAuthFilter;
@@ -22,6 +23,7 @@ import java.util.List;
 @Configuration
 @EnableMethodSecurity
 public class SecurityConfig {
+
     private final JwtAuthFilter jwtAuthFilter;
 
     @Value("${app.cors.allowed-origins}")
@@ -33,30 +35,96 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        http.csrf(csrf -> csrf.disable())
-                .cors(c -> c.configurationSource(corsSource()))
-                .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**", "/h2-console/**", "/api/public/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/courses", "/api/courses/**", "/api/certificates/verify/**").permitAll()
-                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                        .requestMatchers("/api/instructor/**").hasAnyRole("INSTRUCTOR", "ADMIN")
-                        .anyRequest().authenticated()
-                )
-                .headers(h -> h.frameOptions(f -> f.disable()))
-                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+
+        http
+            .csrf(csrf -> csrf.disable())
+
+            .cors(cors -> cors.configurationSource(corsSource()))
+
+            .sessionManagement(session -> session
+                .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+            )
+
+            .authorizeHttpRequests(auth -> auth
+
+                // Public authentication endpoints
+                .requestMatchers(
+                    "/auth/**",
+                    "/api/auth/**"
+                ).permitAll()
+
+                // Public endpoints
+                .requestMatchers(
+                    "/api/public/**",
+                    "/h2-console/**"
+                ).permitAll()
+
+                // Allow browser CORS preflight requests
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+
+                // Public course and certificate endpoints
+                .requestMatchers(
+                    HttpMethod.GET,
+                    "/api/courses",
+                    "/api/courses/**",
+                    "/api/certificates/verify/**"
+                ).permitAll()
+
+                // Admin-only endpoints
+                .requestMatchers("/api/admin/**")
+                .hasRole("ADMIN")
+
+                // Instructor and admin endpoints
+                .requestMatchers("/api/instructor/**")
+                .hasAnyRole("INSTRUCTOR", "ADMIN")
+
+                // All other endpoints require authentication
+                .anyRequest().authenticated()
+            )
+
+            .headers(headers ->
+                headers.frameOptions(frame -> frame.disable())
+            )
+
+            .addFilterBefore(
+                jwtAuthFilter,
+                UsernamePasswordAuthenticationFilter.class
+            );
+
         return http.build();
     }
 
     @Bean
     public CorsConfigurationSource corsSource() {
+
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(Arrays.asList(allowedOrigins.split(",")));
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+
+        config.setAllowedOrigins(
+            Arrays.stream(allowedOrigins.split(","))
+                .map(String::trim)
+                .filter(origin -> !origin.isEmpty())
+                .toList()
+        );
+
+        config.setAllowedMethods(
+            List.of(
+                "GET",
+                "POST",
+                "PUT",
+                "PATCH",
+                "DELETE",
+                "OPTIONS"
+            )
+        );
+
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+
+        UrlBasedCorsConfigurationSource source =
+            new UrlBasedCorsConfigurationSource();
+
         source.registerCorsConfiguration("/**", config);
+
         return source;
     }
 
