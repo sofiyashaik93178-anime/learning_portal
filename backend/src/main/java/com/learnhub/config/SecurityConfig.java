@@ -35,16 +35,12 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-
         http
             .csrf(csrf -> csrf.disable())
-
             .cors(cors -> cors.configurationSource(corsSource()))
-
             .sessionManagement(session -> session
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             )
-
             .authorizeHttpRequests(auth -> auth
 
                 // Public authentication endpoints
@@ -53,39 +49,41 @@ public class SecurityConfig {
                     "/api/auth/**"
                 ).permitAll()
 
-                // Public endpoints
+                // Public information endpoints
                 .requestMatchers(
+                    "/public/**",
                     "/api/public/**",
                     "/h2-console/**"
                 ).permitAll()
 
-                // Allow browser CORS preflight requests
+                // Allow browser preflight requests
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                // Public course and certificate endpoints
+                // Public course and certificate verification endpoints
                 .requestMatchers(
                     HttpMethod.GET,
+                    "/courses",
+                    "/courses/**",
                     "/api/courses",
                     "/api/courses/**",
+                    "/certificates/verify/**",
                     "/api/certificates/verify/**"
                 ).permitAll()
 
                 // Admin-only endpoints
-                .requestMatchers("/api/admin/**")
-                .hasRole("ADMIN")
+                .requestMatchers("/admin/**", "/api/admin/**")
+                    .hasRole("ADMIN")
 
                 // Instructor and admin endpoints
-                .requestMatchers("/api/instructor/**")
-                .hasAnyRole("INSTRUCTOR", "ADMIN")
+                .requestMatchers("/instructor/**", "/api/instructor/**")
+                    .hasAnyRole("INSTRUCTOR", "ADMIN")
 
-                // All other endpoints require authentication
+                // Everything else requires authentication
                 .anyRequest().authenticated()
             )
-
             .headers(headers ->
                 headers.frameOptions(frame -> frame.disable())
             )
-
             .addFilterBefore(
                 jwtAuthFilter,
                 UsernamePasswordAuthenticationFilter.class
@@ -96,7 +94,6 @@ public class SecurityConfig {
 
     @Bean
     public CorsConfigurationSource corsSource() {
-
         CorsConfiguration config = new CorsConfiguration();
 
         config.setAllowedOrigins(
@@ -107,14 +104,7 @@ public class SecurityConfig {
         );
 
         config.setAllowedMethods(
-            List.of(
-                "GET",
-                "POST",
-                "PUT",
-                "PATCH",
-                "DELETE",
-                "OPTIONS"
-            )
+            List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
         );
 
         config.setAllowedHeaders(List.of("*"));
@@ -124,7 +114,6 @@ public class SecurityConfig {
             new UrlBasedCorsConfigurationSource();
 
         source.registerCorsConfiguration("/**", config);
-
         return source;
     }
 
