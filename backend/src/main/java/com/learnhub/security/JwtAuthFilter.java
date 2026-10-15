@@ -33,6 +33,12 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     }
 
     @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        // CORS preflight requests must not require JWT authentication.
+        return "OPTIONS".equalsIgnoreCase(request.getMethod());
+    }
+
+    @Override
     protected void doFilterInternal(
             HttpServletRequest request,
             HttpServletResponse response,
@@ -41,7 +47,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         String header = request.getHeader(HttpHeaders.AUTHORIZATION);
 
-        // No JWT token: continue so public endpoints can work.
+        // No JWT token: continue through the security chain.
         if (header == null || !header.startsWith("Bearer ")) {
             chain.doFilter(request, response);
             return;
@@ -49,7 +55,6 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         String token = header.substring(7).trim();
 
-        // An empty bearer token cannot authenticate a user.
         if (token.isEmpty()) {
             SecurityContextHolder.clearContext();
             chain.doFilter(request, response);
@@ -79,9 +84,8 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                             .setAuthentication(authentication);
                 }
             }
-
         } catch (Exception exception) {
-            // Do not authenticate using an invalid or expired token.
+            // Invalid or expired tokens must not authenticate a user.
             SecurityContextHolder.clearContext();
         }
 
